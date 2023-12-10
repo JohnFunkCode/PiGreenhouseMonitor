@@ -12,6 +12,7 @@ from sense_hat import SenseHat
 
 class greenhouseMonitorApp():
     def __init__(self):
+        self.temperature_sensor = 0
         self.temperature_f = 0
         self.pressure = 0
         self.humidity = 0
@@ -23,11 +24,13 @@ class greenhouseMonitorApp():
 
  
     def get_sensor_data(self):
-        temp = self.sense.get_temperature()
-        self.temperature_f = round(correct_sensor_data('Temperature', temp))
-        self.temperature_f = self.sense.get_temperature()
-        self.pressure = self.sense.get_pressure()
-        self.humidity = self.sense.get_humidity()
+        self.temperature_sensor = self.sense.get_temperature()
+        self.temperature_f = round(correct_sensor_data('Temperature', self.temperature_sensor))
+        print(f'Temp={self.temperature_f}', end=',')
+        self.pressure = round(self.sense.get_pressure())
+        print(f'Pressure={self.pressure}', end=',')
+        self.humidity = round(self.sense.get_humidity())
+        print(f'Humidity={self.humidity}', end=',')
 
     def report_sensor_data(self):
         body = {'value1': self.temperature_f, 'value2': self.pressure, 'value3': self.humidity}
@@ -37,7 +40,7 @@ class greenhouseMonitorApp():
             print(f'{r}', end=',')
         else:
             print('no alarm', end=',')
-        print(f'TempSensor={self.temperature_f}')
+        print(f'TempSensor={self.temperature_sensor}')
 
 
 #######################################################################################
