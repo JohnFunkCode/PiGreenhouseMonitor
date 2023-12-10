@@ -26,13 +26,14 @@ class greenhouseMonitorApp():
     def get_sensor_data(self):
         self.temperature_sensor = self.sense.get_temperature()
         self.temperature_f = round(correct_sensor_data('Temperature', self.temperature_sensor))
-        print(f'Temp={self.temperature_f}', end=',')
         self.pressure = round(self.sense.get_pressure())
-        print(f'Pressure={self.pressure}', end=',')
         self.humidity = round(self.sense.get_humidity())
-        print(f'Humidity={self.humidity}', end=',')
 
     def report_sensor_data(self):
+        print(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), end=',')
+        print(f'Temp={self.temperature_f}', end=',')
+        print(f'Pressure={self.pressure}', end=',')
+        print(f'Humidity={self.humidity}', end=',')
         body = {'value1': self.temperature_f, 'value2': self.pressure, 'value3': self.humidity}
         # print(f'{where},{body}')
         if (35 <= self.temperature_f < 95) == False:
