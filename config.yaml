@@ -1,0 +1,7 @@
+---
+Sensor-Calibration:
+  Temperature:
+    raw_low: 7.22
+    raw_hi:  36.11
+    ref_low: 47
+    ref_hi:  80
