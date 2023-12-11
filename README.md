@@ -8,5 +8,6 @@ file.  If the readings are above or below a reasonable threshold it sends an ale
 This code is designed to run on a Raspberry Pi with a Sense HAT.  It is written in Python 3.  
 It runs via a cron job every 5 minutes.  The cron job is set up as follows:
 ```
-*/5 * * * * /home/pi/Documents/code/PiGreenhouseMonitor/print_sensor_data.py >> /home/pi/Documents/code/PiGreenhouseMonitor/temperature.txt
+*/5 * * * * cd /home/pi/Documents/code/PiGreenhouseMonitor && ./print_sensor_data.py >> /home/pi/Doc
+uments/code/PiGreenhouseMonitor/temperature.txt:
 ```
