@@ -5,3 +5,5 @@ Sensor-Calibration:
     raw_hi:  36.11
     ref_low: 47
     ref_hi:  80
+National-Weather-Service-Station: KBJC
+...
