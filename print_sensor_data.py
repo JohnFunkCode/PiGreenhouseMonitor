@@ -53,10 +53,10 @@ class greenhouseMonitorApp():
     def report_sensor_data(self):
         print(datetime.datetime.now().strftime('%Y-%m-%d, %H:%M:%S'), end=',')
         print(
-            f'InsideTemp={self.inside_temperature_f}, InsidePressure={self.inside_pressure}, InsideHumidity={self.inside_humidity}',
+            f'InsideTemp={self.inside_temperature_f}, InsidePressure={self.inside_pressure}, InsideHumidity={self.inside_humidity} ',
             end=',')
         print(
-            f'OutsideTemp={self.outside_temperature_f}, OutsidePressure={self.outside_pressure}, OutsideHumidity={self.outside_humidity}',
+            f'OutsideTemp={self.outside_temperature_f}, OutsidePressure={self.outside_pressure}, OutsideHumidity={self.outside_humidity}' ,
             end=',')
         body = {'value1': f'in:{self.inside_temperature_f}', 'value2': f'out:{self.outside_temperature_f}',
                 'value3': ''}
