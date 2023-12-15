@@ -51,12 +51,12 @@ class greenhouseMonitorApp():
             print(f'Error getting data from {nws_station_url}')
 
     def report_sensor_data(self):
-        print(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), end=',')
+        print(datetime.datetime.now().strftime('%Y-%m-%d, %H:%M:%S'), end=',')
         print(
-            f'Inside Temp={self.inside_temperature_f} Inside Pressure={self.inside_pressure} Inside Humidity={self.inside_humidity}',
+            f'InsideTemp={self.inside_temperature_f}, InsidePressure={self.inside_pressure}, InsideHumidity={self.inside_humidity}',
             end=',')
         print(
-            f'Outside Temp={self.outside_temperature_f} Outside Pressure={self.outside_pressure} Outside Humidity={self.outside_humidity}',
+            f'OutsideTemp={self.outside_temperature_f}, OutsidePressure={self.outside_pressure}, OutsideHumidity={self.outside_humidity}',
             end=',')
         body = {'value1': f'in:{self.inside_temperature_f}', 'value2': f'out:{self.outside_temperature_f}',
                 'value3': ''}
@@ -65,8 +65,8 @@ class greenhouseMonitorApp():
             r = send_alert_to_iftt(body=body)
             print(f'{r}', end=',')
         else:
-            print('no alarm', end=',')
-        print(f'TempSensor={self.inside_temperature_sensor}')
+            print('no-alarm', end=',')
+        print(f'InsideTempSensor={self.inside_temperature_sensor}')
 
 
 #######################################################################################
