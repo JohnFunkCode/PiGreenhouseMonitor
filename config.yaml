@@ -2,8 +2,8 @@
 Sensor-Calibration:
   Temperature:
     raw_low: -9
-    raw_hi:  27.4325
+    raw_hi:  17.2874
     ref_low: -3
-    ref_hi:  72
+    ref_hi:  54
 National-Weather-Service-Station: KBJC
 ...
