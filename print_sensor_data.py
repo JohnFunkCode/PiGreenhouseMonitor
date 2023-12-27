@@ -1,17 +1,23 @@
 #!/usr/bin/env python
 import os
 import datetime
-
+from pathlib import Path
 import requests
 import logging
 import yaml
+import pandas as pd
+from pandas import DataFrame
+#import matplotlib.pyplot as plt
 
-from sense_hat import SenseHat
-#from sense_emu import SenseHat
+
+#from sense_hat import SenseHat
+from sense_emu import SenseHat
 
 
 class greenhouseMonitorApp():
     def __init__(self):
+        self.reading_date = None
+        self.reading_time = None
         self.inside_temperature_sensor = 0
         self.inside_temperature_f = 0
         self.inside_pressure = 0
@@ -28,8 +34,11 @@ class greenhouseMonitorApp():
         self.sense.clear()
 
     def get_sensor_data(self):
+        self.reading_date = datetime.datetime.now().strftime('%Y-%m-%d')
+        self.reading_time = datetime.datetime.now().strftime('%H:%M:%S')
         self.inside_temperature_sensor = self.sense.get_temperature()
-        self.inside_temperature_f = round(correct_sensor_data('Temperature', self.inside_temperature_sensor))
+        #self.inside_temperature_f = round(correct_sensor_data('Temperature', self.inside_temperature_sensor)) # linear correction
+        self.inside_temperature_f = round((self.inside_temperature_sensor * 1.9) + 16.5)  # polynomial correction better matches themometers in the greenhouse
         self.inside_pressure = round(self.sense.get_pressure())
         self.inside_humidity = round(self.sense.get_humidity())
 
@@ -50,7 +59,22 @@ class greenhouseMonitorApp():
         else:
             print(f'Error getting data from {nws_station_url}')
 
-    def report_sensor_data(self):
+    def record_readings_in_csv_file(self):
+        readings_as_dict = {'Date': self.reading_date, 'Time': self.reading_time,
+                    'Inside Temp Sensor': self.inside_temperature_sensor, 'Inside Temp': self.inside_temperature_f,
+                    'Inside Humidity': self.inside_humidity,
+                    'Outside Temp':self.outside_temperature_f, 'Outside Humidity': self.outside_humidity}
+        readings_as_df = DataFrame([readings_as_dict])
+
+        path = Path('./GreenHouseReadings.csv')
+        if path.is_file():
+            #print("file exists append data to it")
+            readings_as_df.to_csv('GreenHouseReadings.csv', index=False, mode='a', header=False)
+        else:
+            print("the .csv file does not exist create it")
+            readings_as_df.to_csv('GreenHouseReadings.csv', index=False, mode='w', header=True)
+
+    def log_readings(self):
         print(datetime.datetime.now().strftime('%Y-%m-%d, %H:%M:%S'), end=',')
         print(
             f'InsideTemp={self.inside_temperature_f}, InsidePressure={self.inside_pressure}, InsideHumidity={self.inside_humidity} ',
@@ -61,12 +85,29 @@ class greenhouseMonitorApp():
         body = {'value1': f'in:{self.inside_temperature_f}', 'value2': f'out:{self.outside_temperature_f}',
                 'value3': ''}
         # print(f'{where},{body}')
-        if (35 <= self.inside_temperature_f < 95) == False:
+        if (9.33 <= self.inside_temperature_sensor < 35) == False:  # changed to alarming on the actual sensor reading rather than the adjusted values
             r = send_alert_to_iftt(body=body)
             print(f'{r}', end=',')
         else:
             print('no-alarm', end=',')
         print(f'InsideTempSensor={self.inside_temperature_sensor}')
+
+    def graph_reading_history(self):
+        df_to_graph = pd.read_csv('GreenHouseReadings.csv')
+        # graph = df_to_graph.plot(x='Time', y=['Inside Temp', 'Outside Temp','Inside Humidity'], title='Greenhouse Temperature and Humidity', xlabel='Time', ylabel='Temperature (F)', xticks=df_to_graph.index, rot=90, figsize=(20,10), grid=True)
+        graph = df_to_graph.plot(x='Time', y=['Inside Temp', 'Outside Temp'],
+                                 title='Greenhouse Temperature and Humidity', xlabel='Time', ylabel='Temperature (F)',
+                                 figsize=(20, 10), grid=True, xticks=df_to_graph.index, rot=90)
+        fig = graph.get_figure()
+        fig.savefig('GreenHouseReadingsChart.png')
+
+    def upload_graph_to_s3(self):
+        import boto3
+        s3 = boto3.resource('s3')
+        s3.Bucket('johnfunk.com').upload_file(Filename='GreenHouseReadingsChart.png', Key='greenhouse/GreenHouseReadingsChart.png',
+                                              ExtraArgs={'CacheControl': 'no-store,no-cache,private', 'ContentType': 'image/png'})
+        # s3.Bucket('johnfunk.com').upload_file(Filename='index.html', Key='greenhouse/index.html',
+        #                                       ExtraArgs={'CacheControl': 'no-store,no-cache,private', 'ContentType': 'text/html'})
 
 
 #######################################################################################
@@ -113,4 +154,7 @@ if __name__ == "__main__":
     app = greenhouseMonitorApp()
     app.get_sensor_data()
     app.get_outside_data()
-    app.report_sensor_data()
+    app.log_readings()
+    app.record_readings_in_csv_file()
+    app.graph_reading_history()
+    app.upload_graph_to_s3()
