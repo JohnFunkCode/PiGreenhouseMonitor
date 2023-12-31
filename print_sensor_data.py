@@ -28,6 +28,11 @@ class greenhouseMonitorApp():
         self.outside_pressure = 0
         self.outside_humidity = 0
 
+        self.outside_temperature_f_openweathermap = 0
+        self.outside_pressure_openweathermap = 0
+        self.outside_humidity_openweathermap = 0
+
+
         logging.getLogger().setLevel(logging.ERROR)
         self.sense = SenseHat()
         logging.getLogger().setLevel(logging.WARNING)
@@ -42,7 +47,7 @@ class greenhouseMonitorApp():
         self.inside_pressure = round(self.sense.get_pressure())
         self.inside_humidity = round(self.sense.get_humidity())
 
-    def get_outside_data(self):
+    def get_outside_data_from_nws(self):
         nws_station_id = ""
         with open('config.yaml') as f:
             config_data = yaml.load(f, Loader=yaml.FullLoader)
@@ -59,11 +64,32 @@ class greenhouseMonitorApp():
         else:
             print(f'Error getting data from {nws_station_url}')
 
+    def get_outside_data_from_openweathermap(self):
+        lat='39.799650'
+        lon='-105.165640'
+
+        from dotenv import load_dotenv
+        load_dotenv()
+        openweathermap_apikey = os.getenv('OPENWEATHERMAP_API_KEY')
+        if not openweathermap_apikey:
+            raise ValueError('Missing OPENWEATHERMAP_API_KE in .env file')
+
+        openweathermap_url = f'https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&units=imperial&appid={openweathermap_apikey}'
+        r = requests.get(url=openweathermap_url, timeout=5)
+        if r.status_code == 200:
+            data = r.json()
+            self.outside_temperature_f_openweathermap = round(data['main']['temp'])
+            self.outside_pressure_openweathermap = round(data['main']['pressure'])
+            self.outside_humidity_openweathermap = round(data['main']['humidity'])
+        else:
+            print(f'Error getting data from openweathermap.org')
+
     def record_readings_in_csv_file(self):
         readings_as_dict = {'Date': self.reading_date, 'Time': self.reading_time,
                     'Inside Temp Sensor': self.inside_temperature_sensor, 'Inside Temp': self.inside_temperature_f,
                     'Inside Humidity': self.inside_humidity,
-                    'Outside Temp':self.outside_temperature_f, 'Outside Humidity': self.outside_humidity}
+                    'Outside Temp':self.outside_temperature_f, 'Outside Humidity': self.outside_humidity,
+                    'Outside Temp openweathermap': self.outside_temperature_f_openweathermap}
         readings_as_df = DataFrame([readings_as_dict])
 
         path = Path('./GreenHouseReadings.csv')
@@ -82,8 +108,11 @@ class greenhouseMonitorApp():
         print(
             f'OutsideTemp={self.outside_temperature_f}, OutsidePressure={self.outside_pressure}, OutsideHumidity={self.outside_humidity}' ,
             end=',')
+        print(
+            f'OutsideTemp_openweather={self.outside_temperature_f_openweathermap}, OutsidePressure_openweather={self.outside_pressure_openweathermap}, OutsideHumidity_openweather={self.outside_humidity_openweathermap}' ,
+            end=',')
         body = {'value1': f'in:{self.inside_temperature_f}', 'value2': f'out:{self.outside_temperature_f}',
-                'value3': ''}
+                f'openweathermap':{self.outside_temperature_f_openweathermap}}
         # print(f'{where},{body}')
         if (9.33 <= self.inside_temperature_sensor < 35) == False:  # changed to alarming on the actual sensor reading rather than the adjusted values
             r = send_alert_to_iftt(body=body)
@@ -95,9 +124,9 @@ class greenhouseMonitorApp():
     def graph_reading_history(self):
         df_to_graph = pd.read_csv('GreenHouseReadings.csv')
         # graph = df_to_graph.plot(x='Time', y=['Inside Temp', 'Outside Temp','Inside Humidity'], title='Greenhouse Temperature and Humidity', xlabel='Time', ylabel='Temperature (F)', xticks=df_to_graph.index, rot=90, figsize=(20,10), grid=True)
-        graph = df_to_graph.plot(x='Time', y=['Inside Temp', 'Outside Temp'],
+        graph = df_to_graph.plot(x='Time', y=['Inside Temp', 'Outside Temp','Outside Temp openweathermap'],
                                  title='Greenhouse Temperature and Humidity', xlabel='Time', ylabel='Temperature (F)',
-                                 figsize=(20, 10), grid=True, xticks=df_to_graph.index, rot=90)
+                                 figsize=(20, 10), grid=True, xticks=[])
         fig = graph.get_figure()
         fig.savefig('GreenHouseReadingsChart.png')
 
@@ -105,9 +134,9 @@ class greenhouseMonitorApp():
         import boto3
         s3 = boto3.resource('s3')
         s3.Bucket('johnfunk.com').upload_file(Filename='GreenHouseReadingsChart.png', Key='greenhouse/GreenHouseReadingsChart.png',
-                                              ExtraArgs={'CacheControl': 'no-store,no-cache,private', 'ContentType': 'image/png'})
+                                              ExtraArgs={'CacheControl': 'no-store,no-cache,private,max-age=60', 'ContentType': 'image/png'})
         # s3.Bucket('johnfunk.com').upload_file(Filename='index.html', Key='greenhouse/index.html',
-        #                                       ExtraArgs={'CacheControl': 'no-store,no-cache,private', 'ContentType': 'text/html'})
+        #                                       ExtraArgs={'CacheControl': 'no-store,no-cache,private,max-age=60', 'ContentType': 'text/html'})
 
 
 #######################################################################################
@@ -153,7 +182,8 @@ def send_alert_to_iftt(body: dict) -> str:
 if __name__ == "__main__":
     app = greenhouseMonitorApp()
     app.get_sensor_data()
-    app.get_outside_data()
+    app.get_outside_data_from_nws()
+    app.get_outside_data_from_openweathermap()
     app.log_readings()
     app.record_readings_in_csv_file()
     app.graph_reading_history()
