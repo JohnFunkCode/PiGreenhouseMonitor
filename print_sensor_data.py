@@ -28,6 +28,11 @@ class greenhouseMonitorApp():
         self.outside_pressure = 0
         self.outside_humidity = 0
 
+        self.outside_temperature_c_NWS = 0
+        self.outside_temperature_f_NWS = 0
+        self.outside_pressure_NWS = 0
+        self.outside_humidity_NWS = 0
+
         self.outside_temperature_f_openweathermap = 0
         self.outside_pressure_openweathermap = 0
         self.outside_humidity_openweathermap = 0
@@ -57,12 +62,21 @@ class greenhouseMonitorApp():
         r = requests.get(url=nws_station_url, timeout=5)
         if r.status_code == 200:
             data = r.json()
-            self.outside_temperature_c = round(data['properties']['temperature']['value'])
-            self.outside_temperature_f = round(self.outside_temperature_c * 9 / 5 + 32)
-            self.outside_pressure = round(data['properties']['barometricPressure']['value'])
-            self.outside_humidity = round(data['properties']['relativeHumidity']['value'])
+
+            self.outside_temperature_c_NWS = data['properties']['temperature']['value']
+            if self.outside_temperature_c_NWS == None:
+                self.outside_temperature_c_NWS = 0
+            else:
+                self.outside_temperature_f_NWS = self.outside_temperature_c * 1.8 + 32
+            self.outside_pressure_NWS = data['properties']['barometricPressure']['value']
+            if self.outside_pressure_NWS == None:
+                self.outside_pressure_NWS = 0
+            self.outside_humidity_NWS = data['properties']['relativeHumidity']['value']
+            if self.outside_humidity_NWS == None:
+                self.outside_humidity_NWS = 0
         else:
             print(f'Error getting data from {nws_station_url}')
+
 
     def get_outside_data_from_openweathermap(self):
         lat='39.799650'
@@ -78,9 +92,9 @@ class greenhouseMonitorApp():
         r = requests.get(url=openweathermap_url, timeout=5)
         if r.status_code == 200:
             data = r.json()
-            self.outside_temperature_f_openweathermap = round(data['main']['temp'])
-            self.outside_pressure_openweathermap = round(data['main']['pressure'])
-            self.outside_humidity_openweathermap = round(data['main']['humidity'])
+            self.outside_temperature_f = round(data['main']['temp'])
+            self.outside_pressure = round(data['main']['pressure'])
+            self.outside_humidity = round(data['main']['humidity'])
         else:
             print(f'Error getting data from openweathermap.org')
 
@@ -89,7 +103,7 @@ class greenhouseMonitorApp():
                     'Inside Temp Sensor': self.inside_temperature_sensor, 'Inside Temp': self.inside_temperature_f,
                     'Inside Humidity': self.inside_humidity,
                     'Outside Temp':self.outside_temperature_f, 'Outside Humidity': self.outside_humidity,
-                    'Outside Temp openweathermap': self.outside_temperature_f_openweathermap}
+                    'Outside Temp NWS': self.outside_temperature_f_NWS}
         readings_as_df = DataFrame([readings_as_dict])
 
         path = Path('./GreenHouseReadings.csv')
@@ -109,11 +123,9 @@ class greenhouseMonitorApp():
             f'OutsideTemp={self.outside_temperature_f}, OutsidePressure={self.outside_pressure}, OutsideHumidity={self.outside_humidity}' ,
             end=',')
         print(
-            f'OutsideTemp_openweather={self.outside_temperature_f_openweathermap}, OutsidePressure_openweather={self.outside_pressure_openweathermap}, OutsideHumidity_openweather={self.outside_humidity_openweathermap}' ,
+            f'OutsideTemp_NWS={self.outside_temperature_f_NWS}, OutsidePressure_NWS={self.outside_pressure_NWS}, OutsideHumidity_NWS={self.outside_humidity_NWS}' ,
             end=',')
-        body = {'value1': f'in:{self.inside_temperature_f}', 'value2': f'out:{self.outside_temperature_f}',
-                f'openweathermap':{self.outside_temperature_f_openweathermap}}
-        # print(f'{where},{body}')
+        body = {'value1': f'in:{self.inside_temperature_f}', 'value2': f'out:{self.outside_temperature_f}'}
         if (9.33 <= self.inside_temperature_sensor < 35) == False:  # changed to alarming on the actual sensor reading rather than the adjusted values
             r = send_alert_to_iftt(body=body)
             print(f'{r}', end=',')
@@ -123,9 +135,9 @@ class greenhouseMonitorApp():
 
     def graph_reading_history(self):
         df_to_graph = pd.read_csv('GreenHouseReadings.csv')
-        # graph = df_to_graph.plot(x='Time', y=['Inside Temp', 'Outside Temp','Inside Humidity'], title='Greenhouse Temperature and Humidity', xlabel='Time', ylabel='Temperature (F)', xticks=df_to_graph.index, rot=90, figsize=(20,10), grid=True)
-        graph = df_to_graph.plot(x='Time', y=['Inside Temp', 'Outside Temp','Outside Temp openweathermap'],
-                                 title='Greenhouse Temperature and Humidity', xlabel='Time', ylabel='Temperature (F)',
+        # graph = df_to_graph.plot(x='Time', y=['Inside Temp', 'Outside Temp'], title='Greenhouse Temperature and Humidity', xlabel='Time', ylabel='Temperature (F)', xticks=df_to_graph.index, rot=90, figsize=(20,10), grid=True)
+        graph = df_to_graph.plot(x='Time', y=['Inside Temp', 'Outside Temp'],
+                                 title=f'Greenhouse Temperature {self.reading_date} {self.reading_time}', xlabel='Time', ylabel='Temperature (F)',
                                  figsize=(10, 5), grid=True, xticks=[])
         fig = graph.get_figure()
         fig.savefig('GreenHouseReadingsChart.png')
@@ -182,7 +194,7 @@ def send_alert_to_iftt(body: dict) -> str:
 if __name__ == "__main__":
     app = greenhouseMonitorApp()
     app.get_sensor_data()
-    app.get_outside_data_from_nws()
+    # app.get_outside_data_from_nws()
     app.get_outside_data_from_openweathermap()
     app.log_readings()
     app.record_readings_in_csv_file()
